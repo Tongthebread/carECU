@@ -41,15 +41,23 @@ class RunRecord(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     scenario_id: Mapped[int] = mapped_column(Integer)
     algorithm_id: Mapped[int] = mapped_column(Integer)
-    status: Mapped[str] = mapped_column(String(30), default="completed")
+    status: Mapped[str] = mapped_column(String(30), default="queued")
     started_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
     ended_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     random_seed: Mapped[int] = mapped_column(Integer)
     environment: Mapped[dict] = mapped_column(JSON)
     telemetry: Mapped[list] = mapped_column(JSON, default=list)
     metrics: Mapped[dict] = mapped_column(JSON, default=dict)
+    snapshot: Mapped[dict] = mapped_column(JSON, default=dict)
+    report: Mapped[dict] = mapped_column(JSON, default=dict)
     error_message: Mapped[str] = mapped_column(String(500), default="")
 
 
 def init_db() -> None:
-    Base.metadata.create_all(bind=engine)
+    from pathlib import Path
+    from alembic import command
+    from alembic.config import Config
+    root = Path(__file__).resolve().parents[1]
+    config = Config(str(root / "alembic.ini"))
+    config.set_main_option("script_location", str(root / "alembic"))
+    command.upgrade(config, "head")

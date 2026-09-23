@@ -1,0 +1,42 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: driveeval
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-driveeval-local}
+      POSTGRES_DB: driveeval
+    volumes: ["driveeval-postgres:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U driveeval -d driveeval"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+  api:
+    build: ./backend
+    ports: ["127.0.0.1:${DRIVEEVAL_API_PORT:-8000}:8000"]
+    environment:
+      DRIVEEVAL_DATABASE_URL: postgresql+psycopg://driveeval:${POSTGRES_PASSWORD:-driveeval-local}@db:5432/driveeval
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+  dashboard:
+    build: ./frontend
+    ports: ["127.0.0.1:${DRIVEEVAL_DASHBOARD_PORT:-5173}:80"]
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+volumes:
+  driveeval-postgres:
